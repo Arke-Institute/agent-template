@@ -1,0 +1,14 @@
+{
+  "label": "Agent Template",
+  "description": "Template agent - customize this description",
+  "endpoint": "https://agent-template.arke.institute",
+  "actions_required": ["entity:view", "entity:update"],
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "entity_id": { "type": "string", "description": "Entity to process" },
+      "options": { "type": "object", "description": "Agent-specific options" }
+    },
+    "required": ["entity_id"]
+  }
+}
