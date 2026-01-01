@@ -66,7 +66,7 @@ app.post('/process', async (c) => {
   }
 
   // 3. Validate required fields
-  if (!jobRequest.job_id || !jobRequest.target || !jobRequest.log) {
+  if (!jobRequest.job_id || !jobRequest.target || !jobRequest.job_collection) {
     return c.json<JobResponse>(
       { accepted: false, error: 'Missing required fields' },
       400
@@ -95,7 +95,7 @@ app.post('/process', async (c) => {
     status: 'pending',
     entity_id: entityId,
     target: jobRequest.target,
-    log_pi: jobRequest.log.pi,
+    job_collection: jobRequest.job_collection,
     api_base: jobRequest.api_base,
     expires_at: jobRequest.expires_at,
     input: jobRequest.input,
@@ -161,9 +161,9 @@ async function processJob(env: Env, state: JobState): Promise<void> {
     logger.error('Task failed', { error: state.error.message });
   }
 
-  // Write log to log file entity
+  // Write log to job collection
   try {
-    await writeJobLog(client, state.log_pi, {
+    await writeJobLog(client, state.job_collection, {
       job_id: state.job_id,
       agent_id: env.AGENT_ID,
       agent_version: env.AGENT_VERSION,

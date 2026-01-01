@@ -4,7 +4,7 @@ import type { TaskInput, TaskResult } from './task';
 export interface JobRequest {
   job_id: string;
   target: string; // Collection ID
-  log: { pi: string; type: 'file' };
+  job_collection: string; // Where to write logs
   input: TaskInput;
   api_base: string;
   expires_at: string;
@@ -16,7 +16,7 @@ export interface JobState {
   status: 'pending' | 'running' | 'done' | 'error';
   entity_id: string;
   target: string;
-  log_pi: string;
+  job_collection: string;
   api_base: string;
   expires_at: string;
   input: TaskInput;
