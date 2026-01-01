@@ -79,10 +79,25 @@ export async function runTask(
   //   data: { description: result.description },
   // };
 
-  // Silence unused variable warnings for the template
-  void client;
-  void input;
-  void context;
+  // Template implementation: just log the entity exists and return success
+  const { data: entity, error } = await client.api.GET('/entities/{id}', {
+    params: { path: { id: input.entity_id } },
+  });
 
-  throw new Error('Not implemented - customize this for your agent');
+  if (error || !entity) {
+    throw new Error(`Entity not found: ${input.entity_id}`);
+  }
+
+  // For a real agent, you would do processing here and update the entity
+  // This template just returns success to demonstrate the flow
+  void context; // Silence unused warning
+
+  return {
+    success: true,
+    message: 'Entity processed successfully (template - no changes made)',
+    data: {
+      entity_id: input.entity_id,
+      entity_type: entity.type,
+    },
+  };
 }
