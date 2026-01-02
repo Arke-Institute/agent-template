@@ -1,5 +1,7 @@
 node_modules/
 .wrangler/
 .dev.vars
+.env.test
 .agent-id
+.agent-id.prod
 dist/

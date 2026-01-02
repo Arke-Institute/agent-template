@@ -6,10 +6,13 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "deploy:worker": "wrangler deploy",
-    "register": "./scripts/register.sh",
-    "deploy:full": "npm run deploy:worker && npm run register",
-    "type-check": "tsc --noEmit"
+    "register": "npx tsx scripts/register.ts",
+    "register:prod": "npx tsx scripts/register.ts --production",
+    "setup": "npm run deploy && npm run register",
+    "setup:prod": "npm run deploy && npm run register:prod",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run tests/",
+    "test:watch": "vitest tests/"
   },
   "dependencies": {
     "@arke-institute/sdk": "^2.3.0",
@@ -19,6 +22,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241205.0",
     "typescript": "^5.3.0",
+    "vitest": "^2.0.0",
     "wrangler": "^4.0.0"
   }
 }

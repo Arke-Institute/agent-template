@@ -98,6 +98,7 @@ app.post('/process', async (c) => {
     job_collection: jobRequest.job_collection,
     api_base: jobRequest.api_base,
     expires_at: jobRequest.expires_at,
+    network: jobRequest.network,
     input: jobRequest.input,
     started_at: new Date().toISOString(),
   };
@@ -121,9 +122,12 @@ app.post('/process', async (c) => {
 
 async function processJob(env: Env, state: JobState): Promise<void> {
   const logger = new JobLogger(env.AGENT_ID);
+
+  // Use network from job request (passed by Arke API)
   const client = new ArkeClient({
     baseUrl: state.api_base,
     authToken: env.ARKE_API_KEY,
+    network: state.network,
   });
 
   try {

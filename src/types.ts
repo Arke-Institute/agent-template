@@ -8,6 +8,7 @@ export interface JobRequest {
   input: TaskInput;
   api_base: string;
   expires_at: string;
+  network: 'test' | 'main'; // Which network to use for API calls
 }
 
 // What we store in KV
@@ -19,6 +20,7 @@ export interface JobState {
   job_collection: string;
   api_base: string;
   expires_at: string;
+  network: 'test' | 'main';
   input: TaskInput;
 
   started_at: string;
