@@ -2,80 +2,110 @@
 
 Template for single-entity Arke agents. Fork this to create new agents like `description-agent`, `ocr-agent`, `metadata-agent`, etc.
 
-## Quick Start
+## Authentication Model
 
-1. **Copy this template**
-   ```bash
-   cp -r agent-template my-agent
-   cd my-agent
-   ```
+Agents in Arke have their own identity and credentials, separate from your user account:
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+| Key Type | Format | Used For |
+|----------|--------|----------|
+| **User API Key** | `uk_*` | You use this to register/manage agents (admin actions) |
+| **Agent API Key** | `ak_*` | The deployed worker uses this to call Arke API at runtime |
 
-3. **Update configuration**
-   - `wrangler.jsonc`: Change `name`, domain, `AGENT_ID`
-   - `agent.json`: Set `label`, `description`, `endpoint`, `actions_required`
-   - `package.json`: Update `name`
+When you register an agent, Arke creates an agent entity and generates an agent-specific API key. This key is what your worker uses when processing jobs.
 
-4. **Create KV namespace**
-   ```bash
-   wrangler kv:namespace create JOBS
-   # Copy the ID to wrangler.jsonc
-   ```
+## Setup
 
-5. **Implement your task**
-   Edit `src/task.ts`:
-   - Define `TaskOptions` for your agent's options
-   - Define `TaskResult` for your agent's output
-   - Implement `runTask()` with your processing logic
+### 1. Clone and configure
 
-6. **Authenticate with Arke**
-   ```bash
-   arke auth set-api-key uk_your_api_key
-   ```
+```bash
+cp -r agent-template my-agent
+cd my-agent
+npm install
+```
 
-7. **Deploy and register**
-   ```bash
-   npm run deploy:full
-   ```
+Update these files with your agent's details:
+- `wrangler.jsonc`: Change `name`, domain, `AGENT_ID`
+- `agent.json`: Set `label`, `description`, `endpoint`, `actions_required`
+- `package.json`: Update `name`
 
-8. **Set the agent API key**
-   ```bash
-   wrangler secret put ARKE_API_KEY
-   # Paste the ak_* key from registration output
-   ```
+### 2. Create KV namespace
+
+```bash
+wrangler kv:namespace create JOBS
+# Copy the ID to wrangler.jsonc
+```
+
+### 3. Implement your task
+
+Edit `src/task.ts`:
+- Define `TaskOptions` for your agent's options
+- Define `TaskResult` for your agent's output
+- Implement `runTask()` with your processing logic
+
+### 4. Deploy the worker
+
+```bash
+npm run deploy
+```
+
+### 5. Register the agent with Arke
+
+This step uses your **user API key** to create the agent and generate its credentials.
+
+```bash
+# Set your user API key for registration
+export ARKE_API_KEY=uk_your_user_key
+
+# Register (creates agent, generates agent key)
+npm run register
+```
+
+On first run, this will:
+1. Create the agent entity in Arke
+2. Activate it
+3. Generate an agent API key (`ak_*`)
+4. Print the key (save it!)
+
+### 6. Configure the worker with the agent key
+
+Set the **agent API key** (from step 5) as a Cloudflare secret:
+
+```bash
+wrangler secret put ARKE_API_KEY
+# Paste the ak_* key from registration output
+```
+
+Your agent is now deployed and registered.
+
+## Development
+
+```bash
+npm run dev          # Run locally
+npm run deploy       # Deploy to Cloudflare
+npm run register     # Register/update in Arke (test network)
+npm run register:prod # Register on production network
+npm run type-check
+```
 
 ## Project Structure
 
 ```
 my-agent/
-├── package.json
-├── wrangler.jsonc        # Cloudflare Worker config
-├── tsconfig.json
 ├── agent.json            # Agent manifest for Arke registration
+├── wrangler.jsonc        # Cloudflare Worker config
+├── .agent-id             # Created after first registration (test)
+├── .agent-id.prod        # Created after first registration (prod)
 ├── scripts/
-│   └── register.sh       # Registration script
-├── .agent-id             # Created after first registration
+│   └── register.ts       # Registration script
 └── src/
-    ├── index.ts          # Hono app entry point
+    ├── index.ts          # HTTP endpoints (don't modify)
+    ├── verify.ts         # Signature verification (don't modify)
+    ├── state.ts          # KV state management (don't modify)
+    ├── logger.ts         # Job logger (don't modify)
     ├── env.ts            # Environment bindings
     ├── types.ts          # Job types
-    ├── verify.ts         # Ed25519 signature verification
-    ├── state.ts          # KV state management
-    ├── logger.ts         # Job logger
     └── task.ts           # YOUR TASK IMPLEMENTATION
 ```
-
-## Endpoints
-
-| Endpoint | Description |
-|----------|-------------|
-| `GET /health` | Health check |
-| `POST /process` | Receive job from Arke |
-| `GET /status/:job_id` | Poll job status |
 
 ## How It Works
 
@@ -83,17 +113,16 @@ my-agent/
 2. Agent verifies signature, creates job state, returns immediately
 3. Background processor runs your `runTask()` function
 4. Job status is updated in KV (pending → running → done/error)
-5. Log is written to the log file entity in Arke
-6. Orchestrator polls `/status/:job_id` for completion
+5. Log is written to the job collection in Arke
+6. Arke polls `/status/:job_id` for completion
 
-## Development
+## Endpoints
 
-```bash
-npm run dev       # Run locally
-npm run deploy    # Deploy to Cloudflare
-npm run register  # Register/update in Arke
-npm run type-check
-```
+| Endpoint | Description |
+|----------|-------------|
+| `GET /health` | Health check |
+| `POST /process` | Receive job from Arke (signature verified) |
+| `GET /status/:job_id` | Poll job status |
 
 ## Example Task Implementation
 
