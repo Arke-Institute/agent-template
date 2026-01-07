@@ -1,12 +1,7 @@
-export interface Env {
-  // KV for job state
-  JOBS: KVNamespace;
+import type { BaseAgentEnv } from '@arke-institute/agent-core';
+import type { AgentJob } from './agent-job';
 
-  // Agent configuration
-  ARKE_API_KEY: string; // Secret: agent's API key
-  ARKE_API_BASE: string; // Default: https://arke-v1.arke.institute
-
-  // Agent identity (for logging)
-  AGENT_ID: string; // e.g., "description-agent"
-  AGENT_VERSION: string; // e.g., "1.0.0"
+export interface AgentEnv extends BaseAgentEnv {
+  // Durable Object for job processing
+  AGENT_JOBS: DurableObjectNamespace<AgentJob>;
 }

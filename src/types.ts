@@ -1,67 +1,20 @@
+import type { BaseJobState } from '@arke-institute/agent-core';
 import type { TaskInput, TaskResult } from './task';
 
-// What Arke sends us
-export interface JobRequest {
-  job_id: string;
-  target: string; // Collection ID
-  job_collection: string; // Where to write logs
-  input: TaskInput;
-  api_base: string;
-  expires_at: string;
-  network: 'test' | 'main'; // Which network to use for API calls
-}
+// =============================================================================
+// Agent-Specific Types
+// =============================================================================
 
-// What we store in KV
-export interface JobState {
-  job_id: string;
-  status: 'pending' | 'running' | 'done' | 'error';
+/** Agent job state - extends base job state */
+export interface AgentJobState extends BaseJobState {
   entity_id: string;
-  target: string;
-  job_collection: string;
-  api_base: string;
-  expires_at: string;
-  network: 'test' | 'main';
   input: TaskInput;
-
-  started_at: string;
-  completed_at?: string;
-
-  result?: TaskResult;
-  error?: { code: string; message: string };
 }
 
-// What we return on POST /process
-export interface JobAcceptResponse {
-  accepted: true;
-  job_id: string;
+/** Agent input schema (what the orchestrator sends) */
+export interface AgentInput extends TaskInput {
+  // TaskInput already has entity_id and options
 }
 
-export interface JobRejectResponse {
-  accepted: false;
-  error: string;
-  retry_after?: number;
-}
-
-export type JobResponse = JobAcceptResponse | JobRejectResponse;
-
-// What we return on GET /status/:job_id
-export interface StatusResponse {
-  job_id: string;
-  status: JobState['status'];
-  result?: TaskResult;
-  error?: JobState['error'];
-  started_at: string;
-  completed_at?: string;
-}
-
-// Signature verification types
-export interface SigningKeyInfo {
-  public_key: string;
-  algorithm: string;
-  key_id: string;
-}
-
-export interface VerifyResult {
-  valid: boolean;
-  error?: string;
-}
+/** Re-export task types for convenience */
+export type { TaskInput, TaskResult, TaskOptions, TaskContext } from './task';
