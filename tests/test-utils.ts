@@ -5,6 +5,11 @@
  * All tests run on the test network (X-Arke-Network: test) which creates II-prefixed
  * entities in isolated storage, keeping test data separate from production.
  *
+ * Tests use isolated test users:
+ * 1. Admin API key creates a temporary test user (expires in 1 hour)
+ * 2. All test operations run under the test user's API key
+ * 3. This keeps test data completely isolated from the admin account
+ *
  * Usage:
  *   npm run test        # Run tests
  *   npm run test:watch  # Run in watch mode
@@ -21,13 +26,25 @@ import * as path from 'path';
 export interface TestConfig {
   /** Base URL for Arke API */
   baseUrl: string;
-  /** API key for authentication */
-  apiKey: string;
+  /** Admin API key (used only to create test user) */
+  adminApiKey: string;
   /** Agent endpoint URL */
   agentEndpoint: string;
   /** Agent ID (from agent.json or env) */
   agentId: string;
 }
+
+export interface TestUser {
+  /** Test user ID */
+  id: string;
+  /** Test user API key */
+  apiKey: string;
+  /** Expiration time */
+  expiresAt: string;
+}
+
+// Test context - populated by initTestContext()
+let testUser: TestUser | null = null;
 
 /**
  * Load test configuration from environment and agent.json
@@ -55,8 +72,8 @@ export function loadTestConfig(): TestConfig {
   }
 
   // Required: API key
-  const apiKey = process.env.ARKE_API_KEY;
-  if (!apiKey) {
+  const adminApiKey = process.env.ARKE_API_KEY;
+  if (!adminApiKey) {
     throw new Error(
       'ARKE_API_KEY environment variable is required.\n' +
         'Create a .env.test file with:\n' +
@@ -80,10 +97,86 @@ export function loadTestConfig(): TestConfig {
 
   return {
     baseUrl: process.env.ARKE_API_URL || 'https://arke-v1.arke.institute',
-    apiKey,
+    adminApiKey,
     agentEndpoint: process.env.AGENT_ENDPOINT || agentConfig.endpoint || '',
     agentId: process.env.AGENT_ID || agentIdFromFile || agentConfig.id || '',
   };
+}
+
+// =============================================================================
+// Test User Management
+// =============================================================================
+
+/**
+ * Create a temporary test user for isolated testing
+ *
+ * Uses admin API key to create a test user with its own API key.
+ * All subsequent test operations use the test user's key.
+ */
+export async function createTestUser(label?: string): Promise<TestUser> {
+  const config = getTestConfig();
+
+  const response = await fetch(`${config.baseUrl}/test/users`, {
+    method: 'POST',
+    headers: {
+      Authorization: `ApiKey ${config.adminApiKey}`,
+      'Content-Type': 'application/json',
+      'X-Arke-Network': 'test',
+    },
+    body: JSON.stringify({
+      label: label || `Agent Test User ${Date.now()}`,
+      expires_in: 3600, // 1 hour
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to create test user: ${error}`);
+  }
+
+  const data = (await response.json()) as {
+    user: { id: string };
+    api_key: { key: string; expires_at: string };
+  };
+
+  return {
+    id: data.user.id,
+    apiKey: data.api_key.key,
+    expiresAt: data.api_key.expires_at,
+  };
+}
+
+/**
+ * Initialize test context with a test user
+ *
+ * Call this in beforeAll() to set up isolated test user.
+ * All subsequent operations will use the test user's API key.
+ */
+export async function initTestContext(label?: string): Promise<TestUser> {
+  testUser = await createTestUser(label);
+  return testUser;
+}
+
+/**
+ * Get the current test user (throws if not initialized)
+ */
+export function getTestUser(): TestUser {
+  if (!testUser) {
+    throw new Error(
+      'Test user not initialized. Call initTestContext() in beforeAll().'
+    );
+  }
+  return testUser;
+}
+
+/**
+ * Clean up test context
+ *
+ * Call this in afterAll() if needed.
+ */
+export function cleanupTestContext(): void {
+  testUser = null;
+  cachedClient = null;
 }
 
 // =============================================================================
@@ -96,6 +189,7 @@ let cachedConfig: TestConfig | null = null;
 /**
  * Get configured ArkeClient for tests
  *
+ * Uses test user's API key if initialized, otherwise admin key.
  * Uses test network (X-Arke-Network: test) which creates II-prefixed
  * entity IDs in isolated storage, keeping test data separate from production.
  */
@@ -103,9 +197,11 @@ export function getTestClient(): ArkeClient {
   if (cachedClient) return cachedClient;
 
   const config = getTestConfig();
+  const apiKey = testUser?.apiKey || config.adminApiKey;
+
   cachedClient = new ArkeClient({
     baseUrl: config.baseUrl,
-    authToken: config.apiKey,
+    authToken: apiKey,
     network: 'test',
   });
 
@@ -124,13 +220,15 @@ export function getTestConfig(): TestConfig {
 /**
  * Get auth headers for direct fetch calls
  *
+ * Uses test user's API key if initialized, otherwise admin key.
  * Uses test network (X-Arke-Network: test) which creates II-prefixed
  * entity IDs in isolated storage, keeping test data separate from production.
  */
 export function getAuthHeaders(): Record<string, string> {
   const config = getTestConfig();
+  const apiKey = testUser?.apiKey || config.adminApiKey;
   return {
-    Authorization: `ApiKey ${config.apiKey}`,
+    Authorization: `ApiKey ${apiKey}`,
     'Content-Type': 'application/json',
     'X-Arke-Network': 'test',
   };
@@ -172,7 +270,8 @@ export async function createTestCollection(label?: string): Promise<{
  */
 export async function createTestEntity(
   collectionId: string,
-  label?: string
+  label?: string,
+  properties?: Record<string, unknown>
 ): Promise<{ id: string; cid: string }> {
   const config = getTestConfig();
   const headers = getAuthHeaders();
@@ -188,6 +287,7 @@ export async function createTestEntity(
       content_type: 'text/plain',
       size: 100,
       collection: collectionId,
+      ...properties,
     }),
   });
 
