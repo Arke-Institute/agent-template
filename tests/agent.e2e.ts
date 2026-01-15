@@ -5,21 +5,14 @@
  * All tests run on the test network, creating II-prefixed entities
  * in isolated storage separate from production.
  *
- * Tests use isolated test users:
- * 1. Admin API key creates a temporary test user (expires in 1 hour)
- * 2. All test operations run under the test user's API key
- * 3. This keeps test data completely isolated from the admin account
- *
  * Run with:
  *   npm run test        # Run tests
  *   npm run test:watch  # Run in watch mode
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import {
   getTestConfig,
-  initTestContext,
-  cleanupTestContext,
   createTestCollection,
   createTestEntity,
   invokeAgent,
@@ -27,26 +20,15 @@ import {
   getJobCollection,
   getJobCollectionFiles,
   type TestConfig,
-  type TestUser,
 } from './test-utils';
 
 describe('Agent E2E', () => {
   let config: TestConfig;
-  let testUser: TestUser;
 
-  beforeAll(async () => {
+  beforeAll(() => {
     config = getTestConfig();
     console.log(`Testing against test network at ${config.baseUrl}`);
     console.log(`Agent: ${config.agentId} @ ${config.agentEndpoint}`);
-
-    // Create isolated test user for this test run
-    console.log('Creating test user...');
-    testUser = await initTestContext('Agent E2E Test');
-    console.log(`Test user: ${testUser.id}`);
-  });
-
-  afterAll(() => {
-    cleanupTestContext();
   });
 
   it('should process a single entity and create job log', async () => {
