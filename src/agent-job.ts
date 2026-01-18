@@ -172,6 +172,7 @@ export class AgentJob extends BaseAgentDO<AgentJobState, AgentEnv, AgentInput> {
         network: state.network,
       });
 
+      // Write the job log file
       await writeJobLog(client, state.job_collection, {
         job_id: state.job_id,
         agent_id: this.env.AGENT_ID,
@@ -183,9 +184,73 @@ export class AgentJob extends BaseAgentDO<AgentJobState, AgentEnv, AgentInput> {
         error: state.error,
         entries: logger.getEntries(),
       });
+
+      // Update the job collection status
+      await this.updateJobCollectionStatus(client, state);
     } catch (err) {
       console.error(`[${this.env.AGENT_ID}] Failed to write log:`, err);
     }
+  }
+
+  // ===========================================================================
+  // Update Job Collection Status
+  // ===========================================================================
+
+  private async updateJobCollectionStatus(
+    client: ArkeClient,
+    state: AgentJobState
+  ): Promise<void> {
+    const finalStatus = state.status === 'done' ? 'done' : 'error';
+    const maxRetries = 3;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        // Get current collection CID for CAS
+        const { data: collection } = await client.api.GET('/collections/{id}', {
+          params: { path: { id: state.job_collection } },
+        });
+
+        if (!collection) {
+          console.error(`[${this.env.AGENT_ID}] Job collection not found: ${state.job_collection}`);
+          return;
+        }
+
+        // Update collection status
+        const { error: updateError } = await client.api.PUT('/collections/{id}', {
+          params: { path: { id: state.job_collection } },
+          body: {
+            expect_tip: collection.cid,
+            status: finalStatus,
+            note: `Job ${state.job_id} completed with status: ${finalStatus}`,
+          },
+        });
+
+        if (updateError) {
+          const errorStr = JSON.stringify(updateError);
+          if (errorStr.includes('409') || errorStr.includes('Conflict')) {
+            if (attempt < maxRetries - 1) {
+              const delay = Math.pow(2, attempt) * 100 + Math.random() * 100;
+              console.log(`[${this.env.AGENT_ID}] CAS conflict updating job collection, retrying in ${delay}ms...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+              continue;
+            }
+          }
+          console.error(`[${this.env.AGENT_ID}] Failed to update job collection status:`, updateError);
+          return;
+        }
+
+        console.log(`[${this.env.AGENT_ID}] Updated job collection ${state.job_collection} status to ${finalStatus}`);
+        return;
+      } catch (err) {
+        console.error(`[${this.env.AGENT_ID}] Error updating job collection (attempt ${attempt + 1}):`, err);
+        if (attempt < maxRetries - 1) {
+          const delay = Math.pow(2, attempt) * 100 + Math.random() * 100;
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+
+    console.error(`[${this.env.AGENT_ID}] Failed to update job collection status after ${maxRetries} retries`);
   }
 
   // ===========================================================================
