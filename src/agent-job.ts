@@ -220,7 +220,9 @@ export class AgentJob extends BaseAgentDO<AgentJobState, AgentEnv, AgentInput> {
           params: { path: { id: state.job_collection } },
           body: {
             expect_tip: collection.cid,
-            status: finalStatus,
+            properties: {
+              status: finalStatus,
+            },
             note: `Job ${state.job_id} completed with status: ${finalStatus}`,
           },
         });
