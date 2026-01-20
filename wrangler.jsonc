@@ -1,0 +1,66 @@
+{
+  // ============================================================================
+  // TEMPLATE: Fork this for your agent
+  // 1. Change "name" to your agent name (e.g., "arke-description-agent")
+  // 2. Update the custom domain patterns in env.test and env.production
+  // 3. Deploy: npm run deploy:test or npm run deploy:prod
+  // 4. Register: npm run register or npm run register:prod
+  // ============================================================================
+
+  "name": "arke-agent-template",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-12-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "workers_dev": true,
+
+  // === DURABLE OBJECTS ===
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "AGENT_JOBS",
+        "class_name": "AgentJob"
+      }
+    ]
+  },
+
+  // === MIGRATIONS (required for DO) ===
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_classes": ["AgentJob"]
+    }
+  ],
+
+  // === BASE VARS (shared across environments) ===
+  "vars": {
+    "ARKE_API_BASE": "https://arke-v1.arke.institute",
+    "AGENT_ID": "agent-template",
+    "AGENT_VERSION": "1.0.0"
+  },
+
+  // === ENVIRONMENTS ===
+  "env": {
+    // Test environment - for development and testing
+    "test": {
+      "routes": [
+        { "pattern": "agent-template-test.arke.institute", "custom_domain": true }
+      ],
+      "vars": {
+        "ARKE_NETWORK": "test"
+      }
+      // Secret: ARKE_API_KEY (test agent key, set via: wrangler secret put ARKE_API_KEY --env test)
+    },
+
+    // Production environment - for live deployment
+    "production": {
+      "routes": [
+        { "pattern": "agent-template.arke.institute", "custom_domain": true }
+      ],
+      "vars": {
+        "ARKE_NETWORK": "main"
+      }
+      // Secret: ARKE_API_KEY (prod agent key, set via: wrangler secret put ARKE_API_KEY --env production)
+    }
+  }
+}

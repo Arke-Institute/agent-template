@@ -1,0 +1,10 @@
+node_modules/
+.wrangler/
+.env
+.env.*
+!.env.example
+!.env.test.example
+.dev.vars
+.agent-id
+.agent-id.prod
+dist/

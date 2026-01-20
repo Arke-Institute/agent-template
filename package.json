@@ -1,0 +1,30 @@
+{
+  "name": "arke-agent-template",
+  "version": "1.0.0",
+  "description": "Template for Arke agents - fork this to create new agents",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --env test",
+    "deploy:test": "wrangler deploy --env test",
+    "deploy:prod": "wrangler deploy --env production",
+    "deploy": "npm run deploy:test",
+    "register": "npx tsx scripts/register.ts",
+    "register:prod": "npx tsx scripts/register.ts --production",
+    "setup": "npm run deploy:test && npm run register",
+    "setup:prod": "npm run deploy:prod && npm run register:prod",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run tests/",
+    "test:watch": "vitest tests/"
+  },
+  "dependencies": {
+    "@arke-institute/agent-core": "^1.0.0",
+    "@arke-institute/sdk": "^2.3.0",
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241205.0",
+    "typescript": "^5.3.0",
+    "vitest": "^2.0.0",
+    "wrangler": "^4.0.0"
+  }
+}
